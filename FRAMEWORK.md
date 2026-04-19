@@ -1,6 +1,6 @@
 # Agentic Development Framework
 
-**Version:** 2.0.0 (2026-04-17)
+**Version:** 3.0.0 (2026-04-17)
 
 A structured development process for AI coding agents. Built from real-world failures and validated against 22+ professional engineering frameworks including BMAD, GitHub Spec Kit, Amazon Kiro, OpenSpec, RIPER-5, Memory Bank, ADRs, spec-then-code, Aider, Google Engineering Practices, Microsoft SDL, Amazon ORR/COE, Meta DRS, Toyota Production System, DORA, Chaos Engineering, Google SRE, XP, Shape Up, RFC culture, Pre-Mortem analysis, Risk Up Front (RUF), Risk Storming, ATAM, and Risk-First Software Development.
 
@@ -470,3 +470,135 @@ Four principles underpin the entire framework:
 2. **Transparency** — "Done" is defined in writing before work begins. Ambiguous language ("we'll make progress") is the primary vector for failure.
 3. **Integrity** — Track actual delivery against commitments. Measure follow-through, not intentions.
 4. **Commitment** — Move from "I'll try" to "It will be so." Rigorous commitments made with full awareness of risks and constraints.
+
+---
+
+## Agent Team Structure
+
+How to structure agents for each step of the process. Based on empirical research from Anthropic's multi-agent system, MetaGPT (ICLR 2024), Agyn (SWE-bench 72.2%), and production analysis of Cursor, Windsurf, and Copilot.
+
+### Core Findings
+
+**Single-agent with good context management outperforms multi-agent orchestration for interactive development.** Cursor, Windsurf, and Copilot all converged on single-agent architectures. Multi-agent pays off only for genuinely independent parallel tasks, not for coordination-heavy sequential work.
+
+**Agents communicate through documents, not conversations.** MetaGPT scored 3.9 vs ChatDev's 2.1 — the gap is almost entirely explained by structured artifact exchange vs conversational agent chains. Specs, ADRs, and review reports are the communication medium.
+
+**Fresh context per implementation unit.** Each story/feature/PR starts with a clean context window loaded from spec + architecture + archive only. Accumulated context from prior stories introduces bias and degrades quality.
+
+**The minimum number of agents for genuine parallelism.** Anthropic's system performed worse with 50 subagents than with 3-5. Three focused agents outperform one generalist only when tasks are genuinely independent.
+
+### Agent Assignment Per Step
+
+| Step | Agents | Model Tier | Why |
+|------|--------|-----------|-----|
+| 1-4 (Design → Spec) | Single + user | Reasoning (Opus) | Design requires unified context + human judgment |
+| 5 (Explore) | 1-3 parallel subagents | Standard (Sonnet) | Independent file/module exploration parallelizes well |
+| 6 (Read Archive) | Single | Standard | Sequential, small scope |
+| 7 (Impact Analysis) | 1-2 subagents | Standard | Caller/callee tracing + schema analysis can parallelize |
+| 8 (Plan) | Single | Reasoning (Opus) | Planning needs unified context; use strongest model |
+| 9 (Write Tests) | 1-3 parallel subagents | Standard | Independent test files parallelize |
+| 10 (Implement) | Single per story | Standard | Fresh context per unit; no accumulation across stories |
+| 11 (Verify) | Single | Standard | Sequential build/deploy/test |
+| 12 (Debug) | Single | Reasoning (Opus) | Root cause analysis needs unified context |
+| 13 (Req Verification) | Single + user | Standard | Human judgment required |
+| 14 (Fresh Review) | **New agent, mandatory** | Standard | Zero conversation history; adversarial framing |
+| 15 (Archive) | Single | Standard | Sequential documentation |
+
+### When to Add Subagents
+
+Add subagents ONLY when:
+- Tasks are genuinely independent (no shared state, no shared files)
+- Each subagent's work doesn't need the other's output
+- The parallelism saves more time than the coordination costs
+
+Do NOT add subagents when:
+- Tasks modify the same files (merge conflicts)
+- Step 2's output is step 3's input (sequential dependency)
+- The task is small enough that delegation overhead exceeds work time
+- You need unified reasoning across all the information
+
+### Model Tiering
+
+Use the strongest available model for steps requiring deep reasoning:
+- **Reasoning model** (Opus-class): Steps 1-4 (design), 8 (plan), 12 (debug)
+- **Standard model** (Sonnet-class): Steps 5-7 (explore/analyze), 9-11 (test/implement/verify), 13-15 (review/archive)
+- **Fast model** (Haiku-class): Mechanical extraction tasks within pipelines (not framework steps)
+
+This is cost optimization through capability matching, not quality compromise. Agyn achieved 72.2% SWE-bench using GPT-5 for orchestration and cheaper models for implementation.
+
+---
+
+## Agent Prompting: What Works and What Doesn't
+
+Research on persona/role prompting reveals critical findings for how agents are instructed within each step.
+
+### What the Evidence Shows
+
+**Persona framing ("you are a senior security engineer") DEGRADES coding and factual accuracy:**
+- Expert personas on MMLU: -22 percentage points (Llama-3.1-8B)
+- Expert personas on MT-Bench coding: -0.65 points
+- Mechanism: persona prompting redirects attention away from the model's actual knowledge
+
+**What DOES improve output quality:**
+- **Domain checklists** — listing specific categories to check (OWASP Top 10, STRIDE categories)
+- **Methodology scaffolding** — plan→implement→verify phases (implicit chain-of-thought)
+- **Tool restrictions** — read-only for reviewers, write for implementers (architectural constraint)
+- **Explicit I/O specifications** — concrete inputs, expected outputs, edge cases
+- **Stepwise breakdowns** — decomposing complex tasks into ordered sub-steps
+
+### The Optimal Prompt Structure
+
+**Do this:**
+```
+Review this code for OWASP Top 10 vulnerabilities:
+- A01: Broken Access Control — check authorization on all endpoints
+- A02: Cryptographic Failures — check key management, algorithm choices
+- A03: Injection — check all user input paths for SQL/command injection
+[...specific checklist continues...]
+
+For each finding: state the category, quote the vulnerable code, explain the risk, provide the fix.
+```
+
+**Not this:**
+```
+You are a senior security auditor with 15 years of penetration testing
+experience specializing in web application security...
+```
+
+The first injects a checklist that activates specific knowledge. The second activates a persona that displaces knowledge. Research shows the first outperforms.
+
+### Prompting Rules for This Framework
+
+1. **No persona framing.** Do not tell the agent "you are an expert in X." Instead, provide the domain checklist, methodology, and evaluation criteria for X.
+2. **Inject domain knowledge, not domain identity.** List the specific patterns to check, categories to evaluate, criteria to apply. The model already has the knowledge — activate it with specifics, not personas.
+3. **Methodology over personality.** Structure prompts as: context → task → checklist → output format. Not: identity → backstory → task.
+4. **Tool permissions enforce roles.** A reviewer is a reviewer because it has read-only tools, not because it's told "you are a reviewer."
+5. **Specificity plateau at ~100 words.** Performance gains from prompt detail plateau around 100 words and decline beyond 200. Keep task descriptions focused.
+
+### Applying to Fresh-Agent Review (Step 14)
+
+The adversarial review framing is the one place where role framing has empirical support — not for accuracy, but for behavioral alignment. BMAD's finding: reviews with zero findings should trigger re-analysis.
+
+**Effective review prompt:**
+```
+Compare this diff against the spec below. Your task is to find issues.
+
+Checklist:
+- [ ] Every acceptance criterion in the spec is addressed by the diff
+- [ ] No code changes fall outside the declared scope/non-goals
+- [ ] Edge cases from the pre-mortem are handled or documented as assumptions
+- [ ] No archived invariants are violated
+- [ ] Security: no hardcoded secrets, no injection paths, no auth bypasses
+
+You MUST find and report at least one concern, question, or suggestion.
+If you find zero issues, re-examine — zero findings indicates insufficient review depth.
+
+SPEC:
+[spec artifact]
+
+DIFF:
+[code diff]
+
+ARCHIVE ENTRIES:
+[relevant archive entries]
+```

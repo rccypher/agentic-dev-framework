@@ -117,6 +117,15 @@ The framework routes tasks through 3 complexity tiers:
 - Risk Storming (Simon Brown) → in impact analysis
 - Feature flags (Trunk-Based Development) → in implement
 
+**v3.0 additions — Agent Team Structure & Prompting (empirical):**
+- Single-agent default over multi-agent (Cursor, Windsurf, Copilot convergence)
+- Artifact-driven communication, not conversational (MetaGPT 3.9 vs ChatDev 2.1)
+- Model tiering: reasoning models for design/debug, standard for implementation
+- Fresh context per implementation unit (BMAD, validated in production)
+- No persona framing in prompts — domain checklists + methodology instead (arXiv:2603.18507: expert personas degrade coding accuracy by -0.65 on MT-Bench)
+- Adversarial review framing with mandatory findings (BMAD TEA agent pattern)
+- Tool permissions enforce role boundaries, not prompt instructions
+
 ## Task-Type Variants
 
 | Type | Key Differences |
