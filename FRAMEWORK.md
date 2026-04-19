@@ -1,16 +1,14 @@
 # Agentic Development Framework
 
-**Version:** 1.0.0 (2026-04-17)
+**Version:** 2.0.0 (2026-04-17)
 
-A 16-step structured development process designed for AI coding agents. Built from real-world failures and validated against BMAD, GitHub Spec Kit, Amazon Kiro, OpenSpec, RIPER-5, Memory Bank, ADRs, spec-then-code, and Aider methodologies.
-
-This framework solves the core problem of AI-assisted development: **agents lose context, repeat mistakes, skip verification, and produce code that works but doesn't match what was asked for.** Every step exists because its absence caused a specific, documented failure.
+A structured development process for AI coding agents. Built from real-world failures and validated against 22+ professional engineering frameworks including BMAD, GitHub Spec Kit, Amazon Kiro, OpenSpec, RIPER-5, Memory Bank, ADRs, spec-then-code, Aider, Google Engineering Practices, Microsoft SDL, Amazon ORR/COE, Meta DRS, Toyota Production System, DORA, Chaos Engineering, Google SRE, XP, Shape Up, RFC culture, Pre-Mortem analysis, Risk Up Front (RUF), Risk Storming, ATAM, and Risk-First Software Development.
 
 ---
 
 ## Complexity Routing
 
-Not every change needs the full process. Assess complexity first and follow the appropriate tier.
+Assess complexity first. Follow the appropriate tier.
 
 | Tier | Criteria | Steps |
 |------|----------|-------|
@@ -18,7 +16,30 @@ Not every change needs the full process. Assess complexity first and follow the 
 | **Standard** | 2-3 files, clear scope, no architectural changes | 3 → 4 → 5 → 6 → 8 → 9 → 10 → 11 → 13 → 15 → 16 |
 | **Complex** | 3+ modules, schema/API changes, new patterns, prompt engineering, architectural decisions | All 16 steps |
 
-**When in doubt, go one tier up.** Underestimating complexity and skipping steps costs more than the extra time on a higher tier. If during any step you realize the change is more complex than initially assessed, escalate to the higher tier and backfill skipped steps.
+**When in doubt, go one tier up.** If during any step you realize the change is more complex than assessed, escalate and backfill skipped steps.
+
+### Time Budget & Circuit Breaker (Shape Up)
+
+Every task gets a time budget at assessment. If the budget is exhausted without completion:
+- **Stop.** Do not continue.
+- Review what's done and what's still unknown.
+- Reduce scope or re-shape the task.
+- Get user confirmation before proceeding.
+
+**Midpoint checkpoint:** At 50% of the time budget, report what is still uncertain vs. what is planned. Uncertainty at midpoint triggers user review.
+
+### Task-Type Variants
+
+Different work types emphasize different steps:
+
+| Task Type | Key Differences |
+|-----------|----------------|
+| **Feature** | Full creative pipeline (default) |
+| **Bug Fix** | Document current vs. expected vs. unchanged behavior. Root cause before fix. |
+| **Refactoring** | Tests must pass BEFORE and AFTER. Same behavior, different structure. No new features. |
+| **Security Fix** | STRIDE threat model mandatory. Fresh-agent review mandatory. No feature flags — ship immediately. |
+| **Prompt Engineering** | A/B comparison of outputs on known inputs. Regression test on existing behavior. |
+| **Infrastructure** | ORR checklist mandatory. Rollback verification. Canary deployment where possible. |
 
 ---
 
@@ -28,37 +49,37 @@ Not every change needs the full process. Assess complexity first and follow the 
 TASK RECEIVED
      |
      v
-1. COMPLEXITY ASSESSMENT -----> Route to Quick Fix / Standard / Complex
+1. COMPLEXITY ASSESSMENT -----> Route + time budget + task type
      |
      v
-2. DESIGN DISCUSSION LOG -----> Structured elicitation, record to file
+2. DESIGN DISCUSSION LOG -----> Discovery process + structured elicitation
      |
      v
-3. REQUIREMENTS CONFIRMATION -----> User confirms or corrects
+3. REQUIREMENTS CONFIRMATION -----> User confirms; Definition Meeting format
      |
      v
-4. SPEC ARTIFACT -----> Generate formal spec as source of truth
+4. SPEC ARTIFACT -----> Formal spec with non-goals, pre-mortem, security
      |
      v
-5. EXPLORE (read relevant code, identify affected modules)
+5. EXPLORE (read code, identify modules, note patterns)
      |
      v
-6. READ ARCHIVE (check invariants, dead ends, constraints)
+6. READ ARCHIVE (invariants, dead ends, constraints, postmortems)
      |
      v
-7. IMPACT ANALYSIS -----> If blast radius > 3 modules, confirm with user
+7. IMPACT ANALYSIS -----> Blast radius + risk storming; confirm if > 3 modules
      |
      v
-8. PLAN (approach + alternatives considered + test strategy + rollback)
+8. PLAN (approach + alternatives + RAT + pre-mortem + test strategy + rollback)
      |                                          |
      v                                User confirms if non-trivial
 9. WRITE TESTS (failing tests against acceptance criteria)
      |
      v
-10. IMPLEMENT (with pattern conformance + scope completeness checks)
+10. IMPLEMENT (pattern conformance + scope completeness + Andon stops)
      |
      v
-11. VERIFY (build, deploy, run tests, direct data validation)
+11. VERIFY (build, deploy, tests green, ORR checklist, data validation)
      |
      v
   PASS? --NO--> 12. DEBUG (root cause, record dead ends) --> return to 10
@@ -66,7 +87,7 @@ TASK RECEIVED
     YES
      |
      v
-13. REQUIREMENTS VERIFICATION (walk each criterion with user, show evidence)
+13. REQUIREMENTS VERIFICATION (walk spec criteria with evidence + self-review)
      |
      v
   ALL MET? --NO--> return to 10
@@ -74,13 +95,15 @@ TASK RECEIVED
     YES
      |
      v
-14. FRESH-AGENT REVIEW (new session reviews spec + diff, no conversation history)
+14. FRESH-AGENT REVIEW (new session: spec + diff only, no conversation history)
      |
      v
-15. ARCHIVE CAPTURE (decisions, constraints, dead ends, prompt rationale, process reflection)
+15. ARCHIVE CAPTURE (decisions, dead ends, prompt rationale, process reflection)
      |
      v
 16. DONE
+     |
+  FAILURE IN PRODUCTION? --> TRIGGERED: COE / POSTMORTEM PROCESS
 ```
 
 ---
@@ -89,84 +112,66 @@ TASK RECEIVED
 
 ### 1. COMPLEXITY ASSESSMENT
 
-**Goal:** Route the task to the appropriate process tier to match effort to risk.
+**Goal:** Route the task to the appropriate tier, set time budget, identify task type.
 
 **Applies to:** All tiers (this step determines the tier).
 
 Actions:
-- Assess the change along these dimensions:
-  - **Files affected:** 1 file (quick fix) | 2-3 files (standard) | 3+ files (complex)
-  - **Schema/API changes:** No (quick fix or standard) | Yes (complex)
-  - **New patterns introduced:** No (quick fix or standard) | Yes (complex)
-  - **Architectural impact:** None (quick fix) | Local (standard) | Cross-module (complex)
-  - **Risk if wrong:** Low/easily reverted (quick fix) | Moderate (standard) | High/hard to revert (complex)
-- State the assessed tier explicitly: "This is a [quick fix / standard / complex] change because [reason]."
-- If the user disagrees with the assessment, adjust.
+- Assess dimensions: files affected, schema/API changes, new patterns, architectural impact, risk if wrong
+- Identify task type: feature, bug fix, refactoring, security fix, prompt engineering, infrastructure
+- Set time budget: "This task gets [X] hours/minutes of effort before a checkpoint"
+- State explicitly: "This is a [tier] [task type] because [reason]. Time budget: [X]."
 
-**Escalation rule:** If during ANY subsequent step you discover the change is more complex than assessed, stop and escalate to the higher tier. Backfill any skipped steps before continuing.
-
-**Origin:** Adapted from Memory Bank's complexity levels (1-4) and spec-then-code's risk/complexity matrix. The insight: uniform process overhead on trivial changes creates friction that erodes adoption, but undertriaging causes more damage than overtriaging.
+**Escalation rule:** If during ANY subsequent step you discover the change is more complex than assessed, stop and escalate. Backfill skipped steps.
 
 ---
 
 ### 2. DESIGN DISCUSSION LOG
 
-**Goal:** Capture the initial conversation through structured elicitation before anything is formalized.
+**Goal:** Surface hidden requirements through structured discovery before formalizing anything.
 
-**Applies to:** Complex tier (mandatory). Standard tier (optional — create if discussion is substantive). Quick fix (skip).
+**Applies to:** Complex (mandatory). Standard (optional). Quick fix (skip).
 
 Actions:
-- Create a log file at `docs/design-discussions/YYYY-MM-DD-<short-slug>.md`
-- **Structured elicitation** — actively ask targeted questions to surface hidden requirements:
-  - Edge cases: "What happens when [input is empty / API is down / quota is exceeded]?"
-  - Error conditions: "How should failures be surfaced to the user?"
-  - Performance constraints: "Are there latency or throughput requirements?"
-  - Security implications: "Does this touch credentials, user data, or external APIs?"
-  - Rollback scenarios: "If this breaks something in production, what's the recovery path?"
-  - User experience: "What should the output look like? Can you describe the ideal result?"
-- Record the conversation as it happens: what the user asked for, what approaches were considered, what tradeoffs were discussed, what was rejected and why
-- Include the user's original words — paraphrase loses nuance and intent
-
-See `templates/design-discussion.md` for the file template.
-
-**Origin:** Combines Claude Code's "Let Claude interview you" pattern with BMAD's "Advanced Elicitation." The insight: conversations that shape design decisions vanish when the context window compacts. The archive captures constraints AFTER implementation, but the reasoning that led to the approach is lost without this step.
+- Create `docs/design-discussions/YYYY-MM-DD-<slug>.md`
+- **Run the Discovery Process** (see `DISCOVERY.md`) — structured, non-technical elicitation that surfaces edge cases, constraints, and expectations
+- **DKDK Probe** (Risk Up Front): Ask specifically about unknowns — "What about this task makes you uncertain? What might we be missing? What has gone wrong with similar work before?"
+- Record the conversation as it happens, including the user's original words
+- Note what was considered AND what was rejected, with reasons
 
 ---
 
 ### 3. REQUIREMENTS CONFIRMATION
 
-**Goal:** Eliminate ambiguity before any code is read or written.
+**Goal:** Eliminate ambiguity. Achieve mutual understanding of every word.
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip — scope is self-evident).
+**Applies to:** Standard and Complex. Quick fix (skip).
 
 Actions:
 - Restate the task in your own words
-- List explicit acceptance criteria: "This is done when X, Y, Z"
+- List acceptance criteria: "This is done when X, Y, Z"
 - List scope boundaries: "This does NOT include A, B"
+- **Definition Meeting format** (RUF): Read each requirement back to the user statement by statement. Confirm understanding of every term. Surface disagreements about what words mean while the cost of correction is near zero.
 - Identify unknowns or assumptions that need confirmation
-- If the task involves user-facing output, confirm what the output should look like
 
-**Gate:** Do not proceed until the user confirms the requirements and acceptance criteria. If the user says "just do it" without confirming, restate your understanding in one sentence and proceed — but flag any assumptions you're making.
-
-**Origin:** No other surveyed framework has an explicit "these things will NOT be done in this task" confirmation gate. This prevents scope creep and forces the agent to declare its assumptions before investing effort.
+**Gate:** Do not proceed until user confirms.
 
 ---
 
 ### 4. SPEC ARTIFACT
 
-**Goal:** Produce a formal, versioned specification that serves as the single source of truth for the entire lifecycle of this change.
+**Goal:** Produce a formal, versioned spec as the single source of truth.
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip).
+**Applies to:** Standard and Complex. Quick fix (skip).
 
 Actions:
-- Generate `docs/specs/YYYY-MM-DD-<short-slug>.spec.md` using the template
-- The spec is a **living document** — update it when requirements change rather than relying on conversation history
-- Step 13 (Requirements Verification) walks against THIS document, not conversation memory
-- If requirements change mid-implementation, update the spec FIRST, get user confirmation, then continue
+- Generate `docs/specs/YYYY-MM-DD-<slug>.spec.md`
+- **Must include Non-Goals** (Google Design Docs): explicit statements of what this implementation will NOT do. As important as requirements. Agents self-check against non-goals before declaring completion.
+- **Must include Pre-Mortem section** (Gary Klein): "Assume this implementation has failed. List every reason it could have failed." Each failure mode becomes either a test case or a documented assumption.
+- **Security section** (Microsoft SDL): For code touching auth, data storage, external APIs, or user input, include a STRIDE threat model (Spoofing, Tampering, Repudiation, Information Disclosure, DoS, Elevation of Privilege).
+- The spec is a living document — update when requirements change, not conversation history
 
-See `templates/spec.md` for the file template.
-
-**Origin:** GitHub Spec Kit, Amazon Kiro, and OpenSpec all converge on the same insight: when the specification is a persistent artifact rather than a conversation, requirements don't drift. The spec becomes the anchor that all subsequent steps reference.
+See `templates/spec.md` for the full template.
 
 ---
 
@@ -177,10 +182,11 @@ See `templates/spec.md` for the file template.
 **Applies to:** All tiers.
 
 Actions:
-- Read the relevant source files — do not propose changes to code you haven't read
-- Understand current behavior: what does the code do today?
-- Identify all modules/files that will be affected
-- Note existing patterns: how does similar code in this project handle the same problem?
+- Read relevant source files — do not propose changes to code you haven't read
+- Understand current behavior
+- Identify all affected modules/files
+- Note existing patterns: how does similar code handle the same problem?
+- **For bug fixes:** Document current behavior, expected behavior, and behavior that must remain unchanged
 
 ---
 
@@ -188,129 +194,152 @@ Actions:
 
 **Goal:** Learn from previous decisions and failures before repeating them.
 
-**Applies to:** Standard and Complex tiers. Quick fix (check archive only if the fix touches a module with known gotchas).
+**Applies to:** Standard and Complex. Quick fix (check if module has known gotchas).
 
 Actions:
-- Open the archive file(s) in `docs/archive/` for each affected module
-- Check invariants: are any constraints documented that affect your planned approach?
-- Check dead ends: has the approach you're considering already been tried and failed?
-- Check constraints: are there platform quirks, API limits, or type system gotchas documented?
-
-If no archive file exists for the affected module yet, skip this step but create one in step 15.
-
-**Origin:** Unique to this framework. ADRs document accepted decisions, but not failed approaches. Memory Bank's systemPatterns.md organizes by pattern type, not by "things that failed." This step specifically consults known failures to avoid repeating them.
+- Open archive file(s) in `docs/archive/` for each affected module
+- Check invariants, dead ends, constraints
+- **Check postmortem repository** — has this type of failure happened before? What was the root cause? What systemic change was made?
+- If no archive exists for the module, create one in step 15
 
 ---
 
 ### 7. IMPACT ANALYSIS
 
-**Goal:** Understand the blast radius before making changes. Prevent collateral damage.
+**Goal:** Understand blast radius. Prevent collateral damage.
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip).
+**Applies to:** Standard and Complex. Quick fix (skip).
 
 Actions:
-- List every file that will be modified
-- List every file that CALLS or IS CALLED BY the modified code
+- List every file to be modified
+- List callers and callees of modified code
 - For DB changes: check schema constraints (UNIQUE, NOT NULL, foreign keys, triggers)
-- Grep for shared patterns: if changing a pattern in one file, search for the same pattern elsewhere
-- Assess blast radius: how many modules does this touch?
+- Grep for shared patterns — same fix may be needed elsewhere
+- **Risk Storming** (Simon Brown, for Complex tier): On architecture-level changes, identify risks in three domains: People (skill gaps), Process (workflow gaps), Technology (architectural inadequacy). Note where only one person has identified a risk — these are blind spots.
+- **Riskiest Assumption Test** (RAT): What is the single assumption most likely to make this change fail? Can it be tested cheaply before full implementation?
 
-**Gate:** If blast radius > 3 modules, present the impact analysis to the user and get confirmation before proceeding.
-
-**Origin:** Unique to this framework. Other frameworks discuss architecture but none have a specific step that traces dependency chains and schema constraints before any code is written.
+**Gate:** If blast radius > 3 modules, confirm with user.
 
 ---
 
 ### 8. PLAN
 
-**Goal:** Design the approach, document alternatives, define how to test it, and identify rollback.
+**Goal:** Design the approach with full awareness of alternatives, risks, and failure modes.
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip).
+**Applies to:** Standard and Complex. Quick fix (skip).
 
 Actions:
 - Design the implementation approach
-- Verify the plan does NOT violate any archived invariants from step 6
+- Verify plan does NOT violate archived invariants
 
 - **ALTERNATIVES CONSIDERED** (mandatory for Complex, recommended for Standard):
-  - Document at least one alternative approach that was considered
-  - For each alternative: why it was rejected (performance, complexity, risk, constraint violation)
-  - Record this in the spec artifact under "Alternatives Considered"
+  - Document at least one rejected approach with specific reason for rejection
+  - Record in spec artifact under "Alternatives Considered"
+  - Future agents need this to avoid rediscovering the same dead end as a "new idea"
 
-- Define test strategy for each acceptance criterion:
-  - What input to test with
-  - What output to expect
-  - What failure looks like
-  - How to verify at the data layer — don't trust only the application layer
-- Identify rollback path: if this breaks something, how do we undo it?
-- For prompt/LLM changes: note what the current behavior is and what should change
+- **PRE-MORTEM** (mandatory for Complex):
+  - "This implementation has already failed. Why?"
+  - Enumerate failure modes
+  - Each becomes a test case (step 9) or documented assumption
 
-**Gate:** For non-trivial changes, present the plan to the user for confirmation.
+- **RISKIEST ASSUMPTION TEST** (RAT):
+  - Identify the assumption most likely to cause failure
+  - Design a minimal probe to test it before full implementation
+  - If the assumption fails, reshape the approach before investing further
 
-**Origin:** Alternatives Considered adapted from ADR format and Memory Bank's /creative phase. Rollback path planning is unique to this framework.
+- **SECURITY CHECKPOINT** (mandatory when touching auth, data, APIs, user input):
+  - Produce STRIDE threat model
+  - Identify assets, entry points, threats, mitigations
+  - No custom cryptographic logic — use vetted libraries only
+
+- Define test strategy for each acceptance criterion
+- Identify rollback path
+- For prompt changes: note current vs. expected output differences
+
+**Gate:** Present plan to user for non-trivial changes.
 
 ---
 
 ### 9. WRITE TESTS
 
-**Goal:** Encode acceptance criteria as executable tests BEFORE writing any implementation code. Tests must fail before implementation begins.
+**Goal:** Encode acceptance criteria as executable tests BEFORE implementation. Tests must fail first.
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip — verify manually in step 11).
+**Applies to:** Standard and Complex. Quick fix (skip — verify manually).
 
 Actions:
-- For each acceptance criterion, write a test that verifies it
+- For each acceptance criterion, write a test
 - Tests MUST FAIL before implementation (red phase)
-- Test types in order of preference:
-  1. **Unit test** — fastest feedback, most precise
-  2. **Integration test** — tests cross-module behavior
-  3. **Manual test script** — documented steps with expected output
-  4. **Direct validation query** — SQL query, log grep, or API call with expected result
-- If the project lacks test infrastructure for the affected module, write a manual test script with exact steps and expected results
+- **Include failure-mode tests** (Chaos Engineering): What happens when the dependency is unavailable? When input is malformed? When the datastore is slow?
+- For refactoring: existing tests must PASS before changes begin (proving current behavior), then continue passing after
 
 **Gate:** Tests must exist and fail before proceeding to step 10.
-
-**Origin:** Adapted from spec-then-code, GitHub Spec Kit constitutional articles, and cc-sdd. The insight: writing tests before implementation makes acceptance criteria executable. You know EXACTLY when you're done because the tests turn green.
 
 ---
 
 ### 10. IMPLEMENT
 
-**Goal:** Write code that follows existing patterns and covers all affected code paths. Make the failing tests pass.
+**Goal:** Write code that follows existing patterns and makes failing tests pass.
 
 **Applies to:** All tiers.
 
 Actions:
 - Write the code change
-- **Target: make the tests from step 9 pass** (Standard/Complex tiers)
+- **Target: make tests from step 9 pass**
 
 - **PATTERN CONFORMANCE CHECK:**
-  - Before writing a new pattern, grep the codebase for how the same operation is done elsewhere
-  - If existing code uses a different pattern: follow it (if it works) or fix all instances (if it's broken)
-  - If introducing a new pattern: note it for archive capture in step 15
+  - Grep codebase for how same operation is done elsewhere
+  - Follow existing pattern (if it works) or fix all instances (if broken)
+  - New patterns → note for archive
 
 - **SCOPE COMPLETENESS CHECK:**
-  - Grep for every reference to the thing you changed
-  - If you changed a function signature: check every call site
-  - If you changed a constant or config value: check every usage
-  - If you changed a prompt: check retry paths, fallback paths
-  - If you changed a data model: check all read paths AND write paths
+  - Grep every reference to changed code
+  - Check all call sites, all usages, retry/fallback paths
+  - Check read AND write paths for data model changes
+
+- **ANDON CORD — HARD STOP CONDITIONS** (Toyota/Lean):
+  These are blockers, not warnings. If any occur, STOP and fix before continuing:
+  - Failing tests (that weren't already failing)
+  - Build errors
+  - SAST/security findings at medium or higher severity
+  - Type errors
+  - Introducing a pattern that contradicts an archived invariant
+
+- **Feature flags** (Trunk-Based Development): For incomplete features landing in trunk, use flags. Document flag purpose, owner, and expected removal date.
 
 ---
 
 ### 11. VERIFY
 
-**Goal:** Confirm the code works before presenting results to the user.
+**Goal:** Confirm the code works with staged confidence building.
 
 **Applies to:** All tiers.
 
 Actions:
-- Build: does it compile?
+- Build (debug + release)
 - **DEPLOYMENT VERIFICATION:**
-  - Verify the deployed artifact is newer than the source change (don't test against stale builds)
-  - Verify the service is fully started before testing
-- **Run tests from step 9** — all must pass (green phase)
-- Execute any additional manual verification from the test strategy
-- For DB changes: verify with direct query — don't trust only the application layer's rendering
-- For API/tool changes: call the endpoint and verify the output matches expectations
+  - Binary timestamp newer than source change
+  - Service fully started before testing
+  - Process running the new artifact, not cached old one
+- Run tests from step 9 — all must pass (green phase)
+- For DB changes: verify with direct query, not just application layer
+- For API/tool changes: call endpoint and verify output
+
+- **OPERATIONAL READINESS REVIEW** (Amazon ORR, for deployable changes):
+  - [ ] Error paths handled and surfaced to user
+  - [ ] Rollback mechanism exists and is documented
+  - [ ] Observability: can you tell if this is working or broken in production?
+  - [ ] Documentation updated
+  - [ ] No hardcoded secrets, credentials, or environment-specific values
+
+- **SELF-REVIEW CHECKLIST** (Google Engineering Practices):
+  Before presenting to user, self-check:
+  - [ ] Design: Does this code belong? Is the architecture sound?
+  - [ ] Functionality: Edge cases handled? Concurrency safe?
+  - [ ] Complexity: Can a reader understand this quickly? Any over-engineering?
+  - [ ] Naming: Clear and communicative?
+  - [ ] Comments: Explain *why*, not *what*?
+  - [ ] Tests: Test behavior, not implementation details?
+  - [ ] Non-goals: Does this stay within declared scope?
 
 **If verification fails:** Proceed to step 12 (Debug).
 
@@ -318,20 +347,19 @@ Actions:
 
 ### 12. DEBUG
 
-**Goal:** Find the root cause, not just a workaround. Record dead ends as you go.
+**Goal:** Find root cause. Record dead ends in real time.
 
 **Applies to:** All tiers (when verification fails).
 
 Actions:
-- Find the root cause — read errors, check assumptions, try focused fixes
-- **Before investigating:** Check the archive for known dead ends. If your intended approach is documented as a dead end, skip it
-- **Record dead ends in real time:** Don't wait until the bug is fixed. As you try approaches that fail, note them immediately. These become archive entries in step 15
-- Check: is the symptom in the same layer as the cause? Rendering bugs can have data-layer root causes. Network errors can have auth-layer root causes. Don't assume the symptom points to the source
-- If stuck after investigation: escalate to the user WITH the dead ends documented
+- **Before investigating:** Check archive and postmortem repository for known dead ends
+- Find root cause — read errors, check assumptions, focused fixes
+- **Record dead ends in real time** — don't wait until fixed
+- **Check layer mismatch:** Is the symptom in the same layer as the cause? Rendering bugs can have data-layer root causes
+- **Five Whys** (Amazon COE): Ask "why did this happen?" iteratively until you reach a systemic cause, not just a proximate cause
+- If stuck: escalate with dead ends documented
 
-**On fix found:** Return to step 10 (Implement). The fix goes through the same pattern conformance and scope completeness checks.
-
-**Origin:** Dead-end recording during debug is unique to this framework. Every other surveyed methodology documents decisions but not failed approaches during active debugging.
+**On fix found:** Return to step 10. Fix goes through same checks.
 
 ---
 
@@ -339,88 +367,106 @@ Actions:
 
 **Goal:** Confirm the change delivers what the user asked for, not just that it "works."
 
-**Applies to:** Standard and Complex tiers. Quick fix (skip — verification in step 11 is sufficient).
+**Applies to:** Standard and Complex. Quick fix (skip).
 
 Actions:
-- Walk through each acceptance criterion from the **spec artifact** (step 4), not from conversation memory
-- For each criterion: show the user evidence that it's met (tool output, test result, direct query, screenshot)
-- **Evidence over assertions:** "the test passes" or "here is the output" — not "I believe this works"
+- Walk each acceptance criterion from the **spec artifact**, not conversation memory
+- **Evidence over assertions** (spec-then-code): Show output, test results, direct queries — not "I believe this works"
 - Ask: "Does this match what you expected?"
-- If any criterion isn't met: identify what's missing and return to step 10
-
-**Origin:** Adapted from spec-then-code's "evidence over assertions" principle. Walking against the spec artifact rather than conversation memory prevents the agent from verifying against its own interpretation rather than the user's intent.
+- If any criterion isn't met: return to step 10
 
 ---
 
 ### 14. FRESH-AGENT REVIEW
 
-**Goal:** Catch implementation rationalizations by having a reviewer with zero conversation history evaluate the change.
+**Goal:** Catch rationalizations from an implementation-biased agent.
 
-**Applies to:** Complex tier (mandatory). Standard tier (optional — use for high-risk changes). Quick fix (skip).
+**Applies to:** Complex (mandatory). Standard (optional for high-risk). Quick fix (skip).
 
 Actions:
-- Start a new agent session (or use a subagent) with NO access to the current conversation history
-- Provide the reviewer with ONLY:
-  1. The spec artifact from step 4
-  2. The code diff (all files changed)
-  3. The relevant archive entries
-- The reviewer's task: "Compare this diff against the spec. Flag any spec violations, missing acceptance criteria, unhandled edge cases, or architectural concerns."
-- The reviewer must NOT have access to the implementation conversation
-- Address any findings before proceeding
-
-**Origin:** Adapted from OpenSpec's optional Review phase and RIPER-5's REVIEW phase. The structural insight: an agent that participated in implementation will rationalize its own decisions. A fresh agent with only the spec and diff evaluates objectively.
+- New session or subagent with NO conversation history
+- Provide ONLY: spec artifact, code diff, relevant archive entries
+- Reviewer task: "Compare diff against spec. Flag spec violations, missing criteria, unhandled edge cases, architectural concerns."
+- Address findings before proceeding
 
 ---
 
 ### 15. ARCHIVE CAPTURE
 
-**Goal:** Preserve decisions, constraints, lessons, and process insights for future agents.
+**Goal:** Preserve decisions, constraints, lessons, and process insights.
 
-**Applies to:** All tiers (depth varies by tier).
+**Applies to:** All tiers (depth varies).
 
-For each of the following, ask "Did this happen?" — if YES, write an archive entry:
+Write entries for:
 
 | Trigger | What to Capture |
 |---------|----------------|
 | Design decision with non-obvious rationale | INVARIANT + WHY + WHAT BREAKS |
 | Bug fix where root cause was non-obvious | INVARIANT + WHY + DEAD ENDS |
-| Dead end encountered during debugging | DEAD ENDS (what failed + why) |
+| Dead end during debugging | DEAD ENDS (what failed + why) |
 | Constraint discovered through failure | INVARIANT + WHY + WHAT BREAKS |
 | Prompt/LLM behavior change | INVARIANT + WHY + WHAT BREAKS |
-| Existing archive entry affected by this change | UPDATE or RETIRE the entry |
-| New pattern introduced to the codebase | Pattern description + WHY this pattern |
+| New pattern introduced | Pattern + WHY this pattern |
+| Existing entry affected | UPDATE or RETIRE |
 
-See `templates/archive-entry.md` for the entry format.
+**PROCESS REFLECTION** (mandatory Complex, recommended Standard):
+- **What worked:** One thing the process did well
+- **What caused friction:** One thing that slowed you down
+- **Process improvement:** Specific change to this framework
 
-**PROCESS REFLECTION** (mandatory for Complex, recommended for Standard):
+Append reflections to `docs/archive/process-retrospective.md`.
 
-After capturing technical entries, add a brief process reflection:
-- **What worked:** One thing the development process did well on this task.
-- **What caused friction:** One thing that slowed you down or caused rework.
-- **Process improvement suggestion:** (optional) A specific change to this framework that would help.
-
-Append process reflections to `docs/archive/process-retrospective.md`.
-
-Rules:
-- Update on change: if you modified code that an archive entry describes, update the entry
-- No stale entries: wrong entries actively mislead. Prune aggressively
-- Constraints, not code: capture invariants and rationale. Code changes; reasons persist
-- Split when large: if an archive file exceeds ~80 entries, split by submodule
-
-**Origin:** Combines ADR format (INVARIANT/WHY/ALTERNATIVES) with unique additions: dead-end recording, prompt rationale capture, and process reflection (from Memory Bank's /reflect phase).
+**Update spec artifact** status to "complete." Update design discussion status to "implemented."
 
 ---
 
 ### 16. DONE
 
 Checklist:
-- [ ] Complexity tier was assessed and appropriate steps were followed
-- [ ] All acceptance criteria from the spec artifact are met and confirmed by user
-- [ ] Tests pass (automated or manual verification documented)
-- [ ] Fresh-agent review completed (Complex tier) or waived (Standard/Quick fix)
-- [ ] Archive updated with relevant decisions, constraints, dead ends, and alternatives
-- [ ] Process reflection recorded (Complex and Standard tiers)
-- [ ] Stale archive entries pruned or updated
-- [ ] Spec artifact status updated to "complete"
-- [ ] Design discussion status updated to "implemented"
+- [ ] Complexity tier assessed; appropriate steps followed
+- [ ] All spec acceptance criteria met and confirmed by user
+- [ ] Tests pass
+- [ ] Fresh-agent review completed (Complex) or waived
+- [ ] Archive updated (decisions, dead ends, alternatives, prompt rationale)
+- [ ] Process reflection recorded
+- [ ] Stale archive entries pruned
+- [ ] Spec and design discussion statuses updated
 - [ ] No known issues deferred without user acknowledgment
+
+---
+
+## Triggered Processes
+
+### COE / Postmortem (triggered by production failures)
+
+When agent-generated code causes rollback, user-visible failure, or security issue:
+
+1. **Document:** What happened, when, what was the impact
+2. **Timeline:** Code introduction → Detection → Escalation → Mitigation → Remediation → Close (with timestamps)
+3. **Five Whys:** Iterate "why did this happen?" to systemic root cause
+4. **Action Items:** Each must map to a concrete change:
+   - New archive entry (invariant or dead end)
+   - New checklist item in ORR or self-review
+   - Updated constraint in framework
+   - New test case
+5. **Feedback loop** (Amazon COE → ORR): Ask "Would any existing archive entry or checklist item have prevented this?" If yes, why wasn't it consulted? If no, create one.
+
+See `templates/coe-postmortem.md`.
+
+### Error Budget Review (periodic)
+
+Track change failure rate for agent-generated code:
+- **Target:** < 5% of changes require rollback within 24 hours
+- When budget is exhausted: increase human review requirements, reduce agent autonomy
+- When budget is healthy: maintain current process
+
+---
+
+## Principles (RUF-derived)
+
+Four principles underpin the entire framework:
+
+1. **Accountability** — Every task, decision, and deliverable has one named person accountable. Not a team, not a role — a specific person who agreed to the responsibility.
+2. **Transparency** — "Done" is defined in writing before work begins. Ambiguous language ("we'll make progress") is the primary vector for failure.
+3. **Integrity** — Track actual delivery against commitments. Measure follow-through, not intentions.
+4. **Commitment** — Move from "I'll try" to "It will be so." Rigorous commitments made with full awareness of risks and constraints.
